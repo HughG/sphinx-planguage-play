@@ -1,0 +1,82 @@
+Virtual Environments (venv)
+--------
+
+C:\Users\hughg\AppData\Local\Programs\Python\Python35\python -m venv c:\path\to\myenv
+
+c:\path\to\myenv\Scripts\activate
+
+Moving Venvs
+^^^^
+
+NOTE: I discovered that you can't move a venv folder after you've created it, or you get errors like this:
+
+    Fatal error in launcher: Unable to create process using '"'
+
+To avoid this, do as follows.
+
+* ``old_location>...\python -m pip freeze > somefile`` (to save the set of installed packages)
+
+* Create a new venv in the new location.
+
+* ``new_location>...\python -m pip -r somefile`` (to restore the set of installed packages)
+
+* Delete the old location.
+
+Sphinx Setup
+--------
+
+Python Proxy
+^^^^^^^^
+
+# set HTTP_PROXY=corporate-proxy.corp.com:8080
+set HTTPS_PROXY=corporate-proxy.corp.com:8080
+
+Main Setup
+^^^^^^^^
+
+pip install Sphinx
+
+Successfully installed Jinja2-2.9.6 MarkupSafe-1.0 Pygments-2.2.0 Sphinx-1.6.3 alabaster-0.7.10 babel-2.4.0 certifi-2017.7.27.1 chardet-3.0.4 colorama-0.3.9 docutils-0.14 idna-2.6 imagesize-0.7.1 pytz-2017.2 requests-2.18.4 six-1.10.0 snowballstemmer-1.2.1 sphinxcontrib-websupport-1.0.1 urllib3-1.22
+
+
+Confluence Setup
+^^^^^^^^
+
+Arello Mobile
+""""""""
+
+* https://pypi.python.org/pypi/sphinx-confluence last updated 2016-09-15
+** Source at https://github.com/Arello-Mobile/sphinx-confluence
+** Used with confluence-publisher below.
+** Supports Jira user and issue links, and tables of Jira issues.
+
+* https://pypi.python.org/pypi/confluence-publisher last updated 2016-09-15
+** Maybe only supports publishing static HTML inside an "HTML" macro?
+** Only supports up to Confluence 5.9, but we're on 5.10.3.  Might work, though.
+
+Successfully installed PyYAML-3.12 argparse-1.4.0 confluence-publisher-1.2.1 sphinx-confluence-0.0.3
+
+This outputs in Confluence Storage Format (HTML-based).  The raw HTML output doesn't seem to get cross-page links right,
+in that they seem to be plain HTML links to "test1.html#xxx" etc., rather than Storage Format links, but maybe it gets
+fixed up on output?  If not, it looks fairly easy to override visit_reference in __init__.py to output the desired info.
+See also visit_reference in sphinxcontrib-confluencebuilder\sphinxcontrib\confluencebuilder\writer.py, which outputs the
+right info but in the old Confluence format.
+
+TonyBaloney
+""""""""
+
+* https://github.com/tonybaloney/sphinxcontrib-confluencebuilder
+
+* http://sphinxcontrib-confluencebuilder.readthedocs.io/en/latest/
+
+pip install --upgrade pip setuptools
+
+
+
+
+Project Setup
+^^^^
+
+Scripts\sphinx-quickstart --sep --dot=_
+
+I added modules intersphinx, todo.  I chose to generate a make file and batch file.
