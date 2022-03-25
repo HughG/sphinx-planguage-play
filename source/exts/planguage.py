@@ -1,5 +1,3 @@
-import re
-
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
 
@@ -18,9 +16,6 @@ from sphinx.util import logging # Load on top of python's logging module
 logger = logging.getLogger(__name__)
 logger.info('Hello, this is an extension!')
 
-nl_escape_re = re.compile(r'\\\n')
-strip_backslash_re = re.compile(r'\\(.)')
-
 # MOD_SEP = '::'
 
 def setup(app):
@@ -29,7 +24,6 @@ def setup(app):
     # # # from .domain import PlanguageDomain
     app.add_domain(PlanguageDomain)
 
-    directives.register_directive('_XOD', XObjectDescription)
     directives.register_directive('_PLO', PlanguageObject)
 
 # Copied from sphinx/util/docfields.py
@@ -167,38 +161,17 @@ class PlanguageDocFieldTransformer(DocFieldTransformer):
         node.replace_self(new_list)
 
 
-class XObjectDescription(Directive):
-    """
-    Directive to describe a class, function or similar object.  Not used
-    directly, but subclassed (in domain-specific directives) to add custom
-    behavior.
-    """
+class PlanguageObject(ObjectDescription):
+    #: What is displayed right before the documentation entry.
+    display_prefix = None # type: unicode
 
-    has_content = True
-    required_arguments = 1
-    optional_arguments = 0
-    final_argument_whitespace = True
-    option_spec = {
-        'noindex': directives.flag,
-    }
-
-    # types of doc fields that this directive handles, see sphinx.util.docfields
-    doc_field_types = []    # type: List[Any]
-    domain = None           # type: unicode
-    objtype = None          # type: unicode
-    indexnode = None        # type: addnodes.index
-
-    def get_signatures(self):
-        # type: () -> List[unicode]
-        """
-        Retrieve the signatures to document from the directive arguments.  By
-        default, signatures are given as arguments, one per line.
-
-        Backslash-escaping of newlines is supported.
-        """
-        lines = nl_escape_re.sub('', self.arguments[0]).split('\n')
-        # remove backslashes to support (dummy) escapes; helps Vim highlighting
-        return [strip_backslash_re.sub(r'\1', line.strip()) for line in lines]
+    doc_field_types = [
+        Field('gist', label='Gist', names=('gist')),
+        Field('description', label='Description', names=('desc', 'description')),
+        Field('owner', label='Owner', names=('owner')),
+        Field('source', label='Source', names=('source')),
+        Field('author', label='Author', names=('author')),
+    ]
 
     def handle_signature(self, sig, signode):
         # type: (unicode, addnodes.desc_signature) -> Tuple[unicode, unicode]
@@ -229,212 +202,14 @@ class XObjectDescription(Directive):
         indextext = "%s (%s)" % (fqn, self.display_prefix.strip())
         self.indexnode['entries'].append(('single', _(indextext), fqn, '', None))
 
-    def before_content(self):
-        # type: () -> None
+    def transform_content(self, contentnode: addnodes.desc_content) -> None:
         """
-        Called before parsing content. Used to set information about the current
-        directive context on the build environment.
+        Called after creating the content through nested parsing,
+        but before the ``object-description-transform`` event is emitted,
+        and before the info-fields are transformed.
+        Can be used to manipulate the content.
         """
-        pass
-
-    def after_content(self):
-        # type: () -> None
-        """
-        Called after parsing content. Used to reset information about the
-        current directive context on the build environment.
-        """
-        pass
-
-    def run(self):
-        # type: () -> List[nodes.Node]
-        """
-        Main directive entry function, called by docutils upon encountering the
-        directive.
-
-        This directive is meant to be quite easily subclassable, so it delegates
-        to several additional methods.  What it does:
-
-        * find out if called as a domain-specific directive, set self.domain
-        * create a `desc` node to fit all description inside
-        * parse standard options, currently `noindex`
-        * create an index node if needed as self.indexnode
-        * parse all given signatures (as returned by self.get_signatures())
-          using self.handle_signature(), which should either return a name
-          or raise ValueError
-        * add index entries using self.add_target_and_index()
-        * parse the content and handle doc fields in it
-        """
-        if ':' in self.name:
-            self.domain, self.objtype = self.name.split(':', 1)
-        else:
-            self.domain, self.objtype = '', self.name
-        self.env = self.state.document.settings.env  # type: BuildEnvironment
-        self.indexnode = addnodes.index(entries=[])
-
-
-        logger.critical('run')
-
-
-        node = addnodes.desc()
-        node.document = self.state.document
-        node['domain'] = self.domain
-        # 'desctype' is a backwards compatible attribute
-        node['objtype'] = node['desctype'] = self.objtype
-        node['noindex'] = noindex = ('noindex' in self.options)
-
-        self.names = []  # type: List[unicode]
-        signatures = self.get_signatures()
-        for i, sig in enumerate(signatures):
-            # add a signature node for each signature in the current unit
-            # and add a reference target for it
-            signode = addnodes.desc_signature(sig, '')
-            signode['first'] = False
-            node.append(signode)
-            try:
-                # name can also be a tuple, e.g. (classname, objname);
-                # this is strictly domain-specific (i.e. no assumptions may
-                # be made in this base class)
-                name = self.handle_signature(sig, signode)
-            except ValueError:
-                # signature parsing failed
-                signode.clear()
-                signode += addnodes.desc_name(sig, sig)
-                continue  # we don't want an index entry here
-            if name not in self.names:
-                self.names.append(name)
-                if not noindex:
-                    # only add target and index entry if this is the first
-                    # description of the object with this name in this desc block
-                    self.add_target_and_index(name, sig, signode)
-
-        contentnode = addnodes.desc_content()
-        node.append(contentnode)
-        if self.names:
-            # needed for association of version{added,changed} directives
-            self.env.temp_data['object'] = self.names[0]
-        self.before_content()
-        self.state.nested_parse(self.content, self.content_offset, contentnode)
-        # DocFieldTransformer(self).transform_all(contentnode)
-        # PlanguageDocFieldTransformer(self).transform_all(contentnode)
-        self.env.temp_data['object'] = None
-        self.after_content()
-        return [self.indexnode, node]
-
-
-
-
-class PlanguageObject(XObjectDescription):
-    #: What is displayed right before the documentation entry.
-    display_prefix = None # type: unicode
-
-    doc_field_types = [
-        Field('gist', label='Gist', names=('gist')),
-        Field('description', label='Description', names=('desc', 'description')),
-        Field('owner', label='Owner', names=('owner')),
-        Field('source', label='Source', names=('source')),
-        Field('author', label='Author', names=('author')),
-    ]
-
-    # def handle_signature(self, sig, signode):
-        # # type: (unicode, addnodes.desc_signature) -> Tuple[unicode, unicode]
-        # """Breaks down construct signatures
-
-        # Parses out prefix and argument list from construct definition. The
-        # namespace and class will be determined by the nesting of domain
-        # directives.
-        # """
-        # if self.display_prefix:
-            # signode += addnodes.desc_annotation(self.display_prefix, self.display_prefix)
-        
-        # signode += addnodes.desc_name(sig, sig)
-
-        # return sig
-
-    # def add_target_and_index(self, fqn, sig, signode):
-        # #doc = self.state.document
-        # if fqn not in self.state.document.ids:
-            # signode['names'].append(fqn)
-            # signode['ids'].append(fqn)
-            # self.state.document.note_explicit_target(signode)
-        # objects = self.env.domaindata['planguage']['objects']
-        # objects[fqn] = (self.env.docname, self.objtype)
-
-        # indextext = "%s (%s)" % (fqn, self.display_prefix.strip())
-        # self.indexnode['entries'].append(('single', _(indextext), fqn, '', None))
-
-    def run(self):
-        # type: () -> List[nodes.Node]
-        """
-        Main directive entry function, called by docutils upon encountering the
-        directive.
-
-        This directive is meant to be quite easily subclassable, so it delegates
-        to several additional methods.  What it does:
-
-        * find out if called as a domain-specific directive, set self.domain
-        * create a `desc` node to fit all description inside
-        * parse standard options, currently `noindex`
-        * create an index node if needed as self.indexnode
-        * parse all given signatures (as returned by self.get_signatures())
-          using self.handle_signature(), which should either return a name
-          or raise ValueError
-        * add index entries using self.add_target_and_index()
-        * parse the content and handle doc fields in it
-        """
-
-        logger.critical('overridden run')
-
-
-        if ':' in self.name:
-            self.domain, self.objtype = self.name.split(':', 1)
-        else:
-            self.domain, self.objtype = '', self.name
-        self.env = self.state.document.settings.env  # type: BuildEnvironment
-        self.indexnode = addnodes.index(entries=[])
-
-        node = addnodes.desc()
-        node.document = self.state.document
-        node['domain'] = self.domain
-        # 'desctype' is a backwards compatible attribute
-        node['objtype'] = node['desctype'] = self.objtype
-        node['noindex'] = noindex = ('noindex' in self.options)
-
-        self.names = []  # type: List[unicode]
-        signatures = self.get_signatures()
-        for i, sig in enumerate(signatures):
-            # add a signature node for each signature in the current unit
-            # and add a reference target for it
-            signode = addnodes.desc_signature(sig, '')
-            signode['first'] = False
-            node.append(signode)
-            try:
-                # name can also be a tuple, e.g. (classname, objname);
-                # this is strictly domain-specific (i.e. no assumptions may
-                # be made in this base class)
-                name = self.handle_signature(sig, signode)
-            except ValueError:
-                # signature parsing failed
-                signode.clear()
-                signode += addnodes.desc_name(sig, sig)
-                continue  # we don't want an index entry here
-            if name not in self.names:
-                self.names.append(name)
-                if not noindex:
-                    # only add target and index entry if this is the first
-                    # description of the object with this name in this desc block
-                    self.add_target_and_index(name, sig, signode)
-
-        contentnode = addnodes.desc_content()
-        node.append(contentnode)
-        if self.names:
-            # needed for association of version{added,changed} directives
-            self.env.temp_data['object'] = self.names[0]
-        self.before_content()
-        self.state.nested_parse(self.content, self.content_offset, contentnode)
         PlanguageDocFieldTransformer(self).transform_all(contentnode)
-        self.env.temp_data['object'] = None
-        self.after_content()
-        return [self.indexnode, node]
 
 
 class PlanguageFunctionRequirement(PlanguageObject):
