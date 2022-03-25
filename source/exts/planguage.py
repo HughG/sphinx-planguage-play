@@ -1,11 +1,13 @@
+import re
+
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
 
 from sphinx import addnodes
-from sphinx.directives import ObjectDescription, Directive
+from sphinx.directives import ObjectDescription
 from sphinx.domains import Domain, ObjType
 # from sphinx.domains.python import _pseudo_parse_arglist
-from sphinx.locale import l_, _
+from sphinx.locale import _
 from sphinx.roles import XRefRole
 from sphinx.util.docfields import Field, GroupedField, TypedField
 from sphinx.util.docfields import DocFieldTransformer
@@ -16,7 +18,8 @@ from sphinx.util import logging # Load on top of python's logging module
 logger = logging.getLogger(__name__)
 logger.info('Hello, this is an extension!')
 
-
+nl_escape_re = re.compile(r'\\\n')
+strip_backslash_re = re.compile(r'\\(.)')
 
 # MOD_SEP = '::'
 
@@ -508,10 +511,10 @@ class PlanguageDomain(Domain):
     label = 'Planguage'
     name = 'planguage'
     object_types = {
-        'freq': ObjType(l_('freq'), 'freq'),
-        'preq': ObjType(l_('preq'), 'preq'),
-        'qual': ObjType(l_('qual'), 'qual'),
-        'design': ObjType(l_('design'), 'design'),
+        'freq': ObjType(_('freq'), 'freq'),
+        'preq': ObjType(_('preq'), 'preq'),
+        'qual': ObjType(_('qual'), 'qual'),
+        'design': ObjType(_('design'), 'design'),
     }
 
     directives = {
