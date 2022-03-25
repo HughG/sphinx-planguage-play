@@ -12,7 +12,7 @@ Automation
 ..  freq:: Park.Fauna.Squirrels
 
     :gist: The park will contain squirrels.
-    :description: A number of :term`squirrels` must live in the :term:`park`.
+    :description: A number of :term:`squirrels` must live in the :term:`park`.
     :source: Bob
     :When: 1.2
     :Sub-functions:

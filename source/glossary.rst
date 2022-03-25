@@ -8,4 +8,5 @@ Glossary
         plants cultivated to blend their natural state with artificial order.
 
     squirrel
+    squirrels
         Cute rodent.
